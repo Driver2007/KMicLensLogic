@@ -49,6 +49,8 @@ import sys
 from math import cos, sin, pi
 import time
 import threading
+import Tkinter
+import tkMessageBox
 #----- PROTECTED REGION END -----#	//	Stigmator2.additionnal_import
 
 # Device States Description
@@ -102,6 +104,10 @@ class Stigmator2 (PyTango.Device_4Impl):
         self.ISEG=PyTango.DeviceProxy("ktof/logic/lens1")
         self.DevStat = [False for i in range(8)]
         self.DevStat_check = [True for i in range(8)]
+        if not 'pingthread' in dir(self):
+            self.pingthread = threading.Thread(target=self.check_voltages)
+            self.pingthread.setDaemon(True)
+            self.pingthread.start()
         #----- PROTECTED REGION END -----#	//	Stigmator2.init_device
 
     def always_executed_hook(self):
@@ -349,6 +355,21 @@ class Stigmator2 (PyTango.Device_4Impl):
                 self.ISEG.CH4_6_VSetOn=False
                 self.ISEG.CH4_7_VSetOn=False   
                 self.ISEG.COL2_VSetOn=False
+    def check_voltages(self):
+        voltage_ch=[0.0]*9
+        VoltageLim=20
+        while True:
+            if self.ISEG.state()==PyTango.DevState.ON:
+                for i in range (8):
+                    voltage_ch[i]=self.ISEG.read_attribute("CH4_"+str(i)+"_VURead").value
+                voltage_ch[8]=self.ISEG.read_attribute("COL2_VURead").value
+                for i in range (8):
+                    if abs(voltage_ch[i]-voltage_ch[i+1])>VoltageLim:
+                        self.setOutputOnOnff(False)
+                        root = Tkinter.Tk()
+                        root.withdraw()
+                        tkMessageBox.showinfo("Stigmator 2 protector", "Voltage difference is too high /n or one of the channels is off")
+            time.sleep(0.2)
 
     #----- PROTECTED REGION END -----#	//	Stigmator2.programmer_methods
 

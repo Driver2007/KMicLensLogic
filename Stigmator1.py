@@ -49,6 +49,8 @@ import sys
 from math import cos, sin, pi
 import time
 import threading
+import Tkinter
+import tkMessageBox
 #----- PROTECTED REGION END -----#	//	Stigmator1.additionnal_import
 
 # Device States Description
@@ -354,7 +356,22 @@ class Stigmator1 (PyTango.Device_4Impl):
                 self.ISEG.CH3_6_VSetOn=False
                 self.ISEG.CH3_7_VSetOn=False   
                 self.ISEG.COL1_VSetOn=False
+    def check_voltages(self):
+        voltage_ch=[0.0]*9
+        VoltageLim=20
+        while True:
+            if self.ISEG.state()==PyTango.DevState.ON:
+                for i in range (8):
+                    voltage_ch[i]=self.ISEG.read_attribute("CH3_"+str(i)+"_VURead").value
+                voltage_ch[8]=self.ISEG.read_attribute("COL1_VURead").value
+                for i in range (8):
+                    if abs(voltage_ch[i]-voltage_ch[i+1])>VoltageLim:
+                        self.setOutputOnOnff(False)
+                        root = Tkinter.Tk()
+                        root.withdraw()
+                        tkMessageBox.showinfo("Stigmator 1 protector", "Voltage difference is too high /n or one of the channels is off")
 
+            time.sleep(0.2)
             
 
     #----- PROTECTED REGION END -----#	//	Stigmator1.programmer_methods
